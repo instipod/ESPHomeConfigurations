@@ -1,0 +1,4 @@
+substitutions:
+  device_name: switch1 # hostname & entity_id
+
+<<: !include device-linkind-switch.yaml

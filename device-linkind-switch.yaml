@@ -1,0 +1,257 @@
+## Linkind Smart Switch
+
+esphome:
+  name: ${device_name}
+  on_boot:
+    - priority: -100
+      then:
+        - if:
+            condition:
+              - switch.is_off: led_inhibit_off
+            then:
+              - light.turn_on:
+                  id: status_led_rgb
+                  red: 100%
+                  green: 0%
+                  blue: 0%
+                  brightness: 100%
+  project:
+    name: "Linkind.Smart_Light_Switch"
+    version: "1.0.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_FREERTOS_UNICORE: y    
+
+<<: !include wifi.yaml
+
+<<: !include api.yaml
+
+status_led:
+  pin:
+    number: GPIO26
+
+light:
+  - platform: binary
+    id: relaylight
+    name: ${device_name} Switch
+    output: relay
+    id: switch
+    restore_mode: ALWAYS_OFF
+    effects:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+      - pulse:
+          name: "Slow Pulse"
+          update_interval: 2s
+    on_turn_on: 
+      - if:
+          condition:
+            - switch.is_off: led_inhibit_on
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 0%
+                green: 100%
+                blue: 0%
+                brightness: 100%
+          else:
+            - light.turn_off:
+                id: status_led_rgb
+    on_turn_off:
+      - if:
+          condition:
+            - switch.is_off: led_inhibit_off
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 100%
+          else:
+            - light.turn_off:
+                id: status_led_rgb
+  - platform: rgb
+    name: ${device_name} Status LED
+    id: status_led_rgb
+    red: red_led_pin
+    green: green_led_pin
+    blue: blue_led_null
+    default_transition_length: 0s
+    entity_category: config
+    effects:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+      - pulse:
+          name: "Slow Pulse"
+          update_interval: 2s
+      - strobe:
+          name: Three Color Flash
+          colors:
+            - state: true
+              brightness: 100%
+              red: 100%
+              green: 0%
+              blue: 0%
+              duration: 500ms
+            - state: true
+              red: 100%
+              green: 100%
+              blue: 0%
+              brightness: 100%
+              duration: 500ms
+            - state: true
+              brightness: 100%
+              red: 0%
+              green: 100%
+              blue: 0%
+              duration: 500ms
+      - strobe:
+          name: Two Color Flash
+          colors:
+            - state: true
+              brightness: 100%
+              red: 100%
+              green: 0%
+              blue: 0%
+              duration: 500ms
+            - state: true
+              red: 0%
+              green: 100%
+              blue: 0%
+              brightness: 100%
+              duration: 500ms
+    
+output:
+  - platform: gpio
+    pin: GPIO5
+    inverted: false
+    id: relay
+  - platform: ledc
+    id: red_led_pin
+    pin: GPIO26
+    inverted: false
+  - platform: ledc
+    id: green_led_pin
+    pin: GPIO14
+    inverted: false
+  - platform: ledc
+    id: blue_led_null
+    pin: GPIO27
+    inverted: false
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO32
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Top Button
+    internal: false
+    id: top_button
+    on_click:
+    - min_length: 50ms
+      max_length: 350ms
+      then:
+        - light.turn_on:
+            id: switch
+    on_multi_click:
+    - timing:
+        - ON for at least 350ms
+      then: 
+        - light.turn_on:
+            id: switch
+  - platform: gpio
+    pin:
+      number: GPIO33
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Bottom Button
+    internal: False
+    id: bottom_button
+    on_click:
+    - min_length: 50ms
+      max_length: 500ms
+      then:
+        - light.turn_off: switch
+    on_multi_click:
+    - timing:
+        - ON for at least 500ms
+      then: 
+        - light.turn_off:
+            id: switch
+
+button:
+  - platform: restart
+    name: ${device_name} Restart Device
+    entity_category: diagnostic
+
+switch:
+  - platform: template
+    name: ${device_name} On LED Inhibit
+    id: led_inhibit_on
+    icon: "mdi:lightbulb-off-outline"
+    optimistic: true
+    entity_category: config
+    turn_on_action:
+      - if:
+          condition:
+            - light.is_on: switch
+          then:
+            - light.turn_off:
+                id: status_led_rgb
+      - switch.template.publish:
+          id: led_inhibit_on
+          state: ON
+    turn_off_action:
+      - if:
+          condition:
+            - light.is_on: switch
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 0%
+                green: 100%
+                blue: 0%
+                brightness: 100%
+      - switch.template.publish:
+          id: led_inhibit_on
+          state: OFF
+  - platform: template
+    name: ${device_name} Off LED Inhibit
+    id: led_inhibit_off
+    icon: "mdi:lightbulb-off-outline"
+    optimistic: true
+    entity_category: config
+    turn_on_action:
+      - if:
+          condition:
+            - light.is_off: switch
+          then:
+            - light.turn_off:
+                id: status_led_rgb
+      - switch.template.publish:
+          id: led_inhibit_off
+          state: ON
+    turn_off_action:
+      - if:
+          condition:
+            - light.is_off: switch
+          then:
+            - light.turn_on: 
+                id: status_led_rgb
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 100%
+      - switch.template.publish:
+          id: led_inhibit_off
+          state: OFF
