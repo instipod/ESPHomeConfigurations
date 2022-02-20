@@ -36,7 +36,6 @@ status_led:
 
 light:
   - platform: binary
-    id: relaylight
     name: ${device_name} Switch
     output: relay
     id: switch
