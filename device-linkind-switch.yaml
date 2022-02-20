@@ -38,7 +38,7 @@ light:
   - platform: binary
     name: ${device_name} Switch
     output: relay
-    id: switch
+    id: switchrelay
     restore_mode: ALWAYS_OFF
     effects:
       - pulse:
@@ -161,13 +161,13 @@ binary_sensor:
       max_length: 350ms
       then:
         - light.turn_on:
-            id: switch
+            id: switchrelay
     on_multi_click:
     - timing:
         - ON for at least 350ms
       then: 
         - light.turn_on:
-            id: switch
+            id: switchrelay
   - platform: gpio
     pin:
       number: GPIO33
@@ -180,13 +180,13 @@ binary_sensor:
     - min_length: 50ms
       max_length: 500ms
       then:
-        - light.turn_off: switch
+        - light.turn_off: switchrelay
     on_multi_click:
     - timing:
         - ON for at least 500ms
       then: 
         - light.turn_off:
-            id: switch
+            id: switchrelay
 
 button:
   - platform: restart
@@ -203,7 +203,7 @@ switch:
     turn_on_action:
       - if:
           condition:
-            - light.is_on: switch
+            - light.is_on: switchrelay
           then:
             - light.turn_off:
                 id: status_led_rgb
@@ -213,7 +213,7 @@ switch:
     turn_off_action:
       - if:
           condition:
-            - light.is_on: switch
+            - light.is_on: switchrelay
           then:
             - light.turn_on:
                 id: status_led_rgb
@@ -233,7 +233,7 @@ switch:
     turn_on_action:
       - if:
           condition:
-            - light.is_off: switch
+            - light.is_off: switchrelay
           then:
             - light.turn_off:
                 id: status_led_rgb
@@ -243,7 +243,7 @@ switch:
     turn_off_action:
       - if:
           condition:
-            - light.is_off: switch
+            - light.is_off: switchrelay
           then:
             - light.turn_on: 
                 id: status_led_rgb
