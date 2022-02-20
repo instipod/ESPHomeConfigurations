@@ -1,0 +1,7 @@
+logger:
+
+api:
+  reboot_timeout: 0s #disable auto-reboot if homeassistant is not connecting
+
+ota:
+  password: !secret ota_password

@@ -1,0 +1,286 @@
+## Linkind Smart Dimmer Switch
+## Uses a JST24A triac and a second MCU for dimming 
+
+esphome:
+  name: ${device_name}
+  on_boot:
+    - priority: 400
+      then:
+        - lambda: !lambda |-
+            ESP_LOGI("i2cdimmer", "send dimmer init" );
+            const uint8_t tosend [] = {0x2A, 0x07, 0x56, 0x01, 0x11, 0xFF, 0x66};
+            ErrorCode ret = myi2cbus->write(0x50, tosend, 7);
+            ESP_LOGI("i2cdimmer", "result: %d", (int)ret );
+    - priority: -100
+      then:
+        - if:
+            condition:
+              - switch.is_off: led_inhibit_off
+            then:
+              - light.turn_on:
+                  id: status_led_rgb
+                  red: 100%
+                  green: 0%
+                  blue: 0%
+                  brightness: 100%
+  project:
+    name: "Linkind.Smart_Light_Dimmer"
+    version: "1.2.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_FREERTOS_UNICORE: y    
+
+<<: !include wifi.yaml
+
+<<: !include api.yaml
+
+i2c:
+  sda: GPIO4
+  scl: GPIO22
+  sda_pullup_enabled: true
+  scl_pullup_enabled: true
+  frequency: 100kHz
+  scan: false
+  id: myi2cbus
+
+status_led:
+  pin:
+    number: GPIO26
+
+light:
+  - platform: monochromatic
+    name: ${device_name} Dimmer
+    output: dimi2c
+    default_transition_length: ${transition_length}
+    gamma_correct: 0
+    id: dimmer
+    restore_mode: ALWAYS_OFF
+    effects:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+      - pulse:
+          name: "Slow Pulse"
+          update_interval: 2s
+    on_turn_on: 
+      - if:
+          condition:
+            - switch.is_off: led_inhibit_on
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 0%
+                green: 100%
+                blue: 0%
+                brightness: 100%
+          else:
+            - light.turn_off:
+                id: status_led_rgb
+    on_turn_off:
+      - if:
+          condition:
+            - switch.is_off: led_inhibit_off
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 100%
+          else:
+            - light.turn_off:
+                id: status_led_rgb
+  - platform: rgb
+    name: ${device_name} Status LED
+    id: status_led_rgb
+    red: red_led_pin
+    green: green_led_pin
+    blue: blue_led_null
+    default_transition_length: 0s
+    entity_category: config
+    effects:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+      - pulse:
+          name: "Slow Pulse"
+          update_interval: 2s
+      - strobe:
+          name: Three Color Flash
+          colors:
+            - state: true
+              brightness: 100%
+              red: 100%
+              green: 0%
+              blue: 0%
+              duration: 500ms
+            - state: true
+              red: 100%
+              green: 100%
+              blue: 0%
+              brightness: 100%
+              duration: 500ms
+            - state: true
+              brightness: 100%
+              red: 0%
+              green: 100%
+              blue: 0%
+              duration: 500ms
+      - strobe:
+          name: Two Color Flash
+          colors:
+            - state: true
+              brightness: 100%
+              red: 100%
+              green: 0%
+              blue: 0%
+              duration: 500ms
+            - state: true
+              red: 0%
+              green: 100%
+              blue: 0%
+              brightness: 100%
+              duration: 500ms
+    
+output:
+  - platform: template
+    id: dimi2c
+    type: float    
+    min_power: 0.1
+    zero_means_zero: true
+    write_action:
+      lambda: !lambda |-
+        uint8_t dim_val = 255 * state;
+        uint16_t chk = 65403-dim_val;
+        const uint8_t tosend [] = {0x2A, 0x09, 0x50 ,0x01, dim_val, 0x00, 0x00, (uint8_t)(chk>>8), (uint8_t)(chk)};
+        ErrorCode ret = myi2cbus->write(0x50, tosend, 9);
+        ESP_LOGI("i2cdimmer", "result: %d", (int)ret );
+  - platform: ledc
+    id: red_led_pin
+    pin: GPIO26
+    inverted: false
+  - platform: ledc
+    id: green_led_pin
+    pin: GPIO14
+    inverted: false
+  - platform: ledc
+    id: blue_led_null
+    pin: GPIO27
+    inverted: false
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO32
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Top Button
+    internal: false
+    id: top_button
+    on_click:
+    - min_length: 50ms
+      max_length: 350ms
+      then:
+        - light.turn_on:
+            id: dimmer
+            brightness: 100%
+    on_multi_click:
+    - timing:
+        - ON for at least 350ms
+      then: 
+        - light.turn_on:
+            id: dimmer
+            brightness: 60%
+  - platform: gpio
+    pin:
+      number: GPIO33
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Bottom Button
+    internal: False
+    id: bottom_button
+    on_click:
+    - min_length: 50ms
+      max_length: 500ms
+      then:
+        - light.turn_off: dimmer
+    on_multi_click:
+    - timing:
+        - ON for at least 500ms
+      then: 
+        - light.turn_on:
+            id: dimmer
+            brightness: 35%
+
+button:
+  - platform: restart
+    name: ${device_name} Restart Device
+    entity_category: diagnostic
+
+switch:
+  - platform: template
+    name: ${device_name} On LED Inhibit
+    id: led_inhibit_on
+    icon: "mdi:lightbulb-off-outline"
+    optimistic: true
+    entity_category: config
+    turn_on_action:
+      - if:
+          condition:
+            - light.is_on: dimmer
+          then:
+            - light.turn_off:
+                id: status_led_rgb
+      - switch.template.publish:
+          id: led_inhibit_on
+          state: ON
+    turn_off_action:
+      - if:
+          condition:
+            - light.is_on: dimmer
+          then:
+            - light.turn_on:
+                id: status_led_rgb
+                red: 0%
+                green: 100%
+                blue: 0%
+                brightness: 100%
+      - switch.template.publish:
+          id: led_inhibit_on
+          state: OFF
+  - platform: template
+    name: ${device_name} Off LED Inhibit
+    id: led_inhibit_off
+    icon: "mdi:lightbulb-off-outline"
+    optimistic: true
+    entity_category: config
+    turn_on_action:
+      - if:
+          condition:
+            - light.is_off: dimmer
+          then:
+            - light.turn_off:
+                id: status_led_rgb
+      - switch.template.publish:
+          id: led_inhibit_off
+          state: ON
+    turn_off_action:
+      - if:
+          condition:
+            - light.is_off: dimmer
+          then:
+            - light.turn_on: 
+                id: status_led_rgb
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 100%
+      - switch.template.publish:
+          id: led_inhibit_off
+          state: OFF

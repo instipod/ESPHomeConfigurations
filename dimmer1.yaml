@@ -1,0 +1,5 @@
+substitutions:
+  device_name: dimmer1 # hostname & entity_id
+  transition_length: 1s # transition when turning on/off
+
+<<: !include device-linkind-dimmer.yaml
