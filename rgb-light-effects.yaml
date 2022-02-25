@@ -1,0 +1,79 @@
+- pulse:
+    name: "Slow Pulse"
+    update_interval: 2s
+- pulse:
+    name: "Fast Pulse"
+    transition_length: 0.5s
+    update_interval: 0.5s
+- random:
+    name: "Slow Random"
+    transition_length: 10s
+    update_interval: 10s
+- random:
+    name: "Fast Random"
+    transition_length: 2s
+    update_interval: 3s
+- strobe:
+    name: Police
+    colors:
+      - state: True
+        duration: 250ms
+        red: 100%
+        green: 0%
+        blue: 0%
+      - state: True
+        duration: 250ms
+        red: 0%
+        green: 0%
+        blue: 100%
+- strobe:
+    name: Fire
+    colors:
+      - state: True
+        duration: 500ms
+        red: 100%
+        green: 0%
+        blue: 0%
+      - state: True
+        duration: 500ms
+        red: 100%
+        green: 100%
+        blue: 100%
+- strobe:
+    name: "Tri-Color Slow"
+    colors:
+      - state: True
+        duration: 750ms
+        red: 100%
+        green: 0%
+        blue: 0%
+      - state: True
+        duration: 750ms
+        red: 0%
+        green: 100%
+        blue: 0%
+      - state: True
+        duration: 750ms
+        red: 0%
+        green: 0%
+        blue: 100%
+- strobe:
+    name: "Tri-Color Fast"
+    colors:
+      - state: True
+        duration: 200ms
+        red: 100%
+        green: 0%
+        blue: 0%
+      - state: True
+        duration: 200ms
+        red: 0%
+        green: 100%
+        blue: 0%
+      - state: True
+        duration: 200ms
+        red: 0%
+        green: 0%
+        blue: 100%
+- flicker:
+    name: "Flicker"
