@@ -1,0 +1,383 @@
+esphome:
+  name: ${device_name}
+
+  project:
+    name: "Logicx.3_Button_RGB_Decora"
+    version: "1.0.0"
+
+  on_boot:
+    - priority: 500
+      then:
+        - light.turn_on: ledbus
+        - light.addressable_set:
+            id: ledbus
+            range_from: 0
+            range_to: 2
+            red: 0%
+            green: 0%
+            blue: 100%
+            color_brightness: 100%
+    - priority: -100
+      then:
+        - light.addressable_set:
+            id: ledbus
+            range_from: 0
+            range_to: 2
+            red: 0%
+            green: 100%
+            blue: 0%
+            color_brightness: 100%
+        - delay: 2s
+        - light.addressable_set:
+            id: ledbus
+            range_from: 0
+            range_to: 2
+            red: 0%
+            green: 0%
+            blue: 0%
+            color_brightness: 100%
+
+esp8266:
+  board: esp12e   
+
+<<: !include wifi.yaml
+
+<<: !include api.yaml
+
+status_led:
+  pin: 
+    number: GPIO2
+    inverted: True
+
+light:
+  - platform: neopixelbus
+    type: GRB
+    variant: WS2811
+    pin: GPIO12
+    num_leds: 3
+    internal: true
+    name: "LED Bus"
+    id: ledbus
+    default_transition_length: 0s
+  - platform: partition
+    id: button1led
+    name: "${device_name} Button 1 LED"
+    default_transition_length: 0s
+    segments:
+      - id: ledbus
+        from: 0
+        to: 0
+    on_turn_off:
+    - if:
+        condition:
+          - light.is_on: backlight
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 0
+              range_to: 0
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    effects: !include rgb-light-effects.yaml
+  - platform: partition
+    id: button2led
+    name: "${device_name} Button 2 LED"
+    default_transition_length: 0s
+    segments:
+      - id: ledbus
+        from: 1
+        to: 1
+    on_turn_off:
+    - if:
+        condition:
+          - light.is_on: backlight
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 1
+              range_to: 1
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    effects: !include rgb-light-effects.yaml
+  - platform: partition
+    id: button3led
+    name: "${device_name} Button 3 LED"
+    default_transition_length: 0s
+    segments:
+      - id: ledbus
+        from: 2
+        to: 2
+    on_turn_off:
+    - if:
+        condition:
+          - light.is_on: backlight
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 2
+              range_to: 2
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    effects: !include rgb-light-effects.yaml
+  - platform: binary
+    id: backlight
+    name: "${device_name} Keypad Backlight"
+    output: blacklight_null
+    on_turn_on:
+    - if:
+        condition:
+          - light.is_off: button1led
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 0
+              range_to: 0
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    - if:
+        condition:
+          - light.is_off: button2led
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 1
+              range_to: 1
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    - if:
+        condition:
+          - light.is_off: button3led
+        then:
+          - light.addressable_set:
+              id: ledbus
+              range_from: 2
+              range_to: 2
+              red: 33%
+              green: 33%
+              blue: 33%
+              color_brightness: 100%
+    on_turn_off:
+      - if:
+          condition:
+            - light.is_off: button1led
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 0
+                range_to: 0
+                red: 0%
+                green: 0%
+                blue: 0%
+                color_brightness: 100%
+      - if:
+          condition:
+            - light.is_off: button2led
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 1
+                range_to: 1
+                red: 0%
+                green: 0%
+                blue: 0%
+                color_brightness: 100%
+      - if:
+          condition:
+            - light.is_off: button3led
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 2
+                range_to: 2
+                red: 0%
+                green: 0%
+                blue: 0%
+                color_brightness: 100%
+
+output:
+  - id: blacklight_null
+    platform: gpio
+    pin: GPIO15
+
+switch:
+  - platform: template
+    name: "${device_name} Press Illumination"
+    id: press_illumination
+    entity_category: config
+    optimistic: true
+
+dallas:
+  - pin: 14
+    update_interval: 60s
+
+sensor:
+  - platform: dallas
+    index: 0
+    name: "${device_name} Temperature"
+    filters:
+      - lambda: return x * (9.0/5.0) + 32.0;
+    unit_of_measurement: "°F"
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Button 1
+    internal: false
+    id: button1
+    on_press:
+      - if:
+          condition:
+            - light.is_off: button1led
+            - switch.is_on: press_illumination
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 0
+                range_to: 0
+                red: 0%
+                green: 50%
+                blue: 0%
+                color_brightness: 100%
+    on_release:
+      - if:
+          condition:
+            - light.is_off: button1led
+            - switch.is_on: press_illumination
+          then:
+            - if:
+                condition:
+                  - light.is_on: backlight
+                then:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 0
+                      range_to: 0
+                      red: 33%
+                      green: 33%
+                      blue: 33%
+                      color_brightness: 100%
+                else:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 0
+                      range_to: 0
+                      red: 0%
+                      green: 0%
+                      blue: 0%
+                      color_brightness: 100%
+  - platform: gpio
+    pin:
+      number: GPIO5
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Button 2
+    internal: false
+    id: button2
+    on_press:
+      - if:
+          condition:
+            - light.is_off: button2led
+            - switch.is_on: press_illumination
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 1
+                range_to: 1
+                red: 0%
+                green: 50%
+                blue: 0%
+                color_brightness: 100%
+    on_release:
+      - if:
+          condition:
+            - light.is_off: button2led
+            - switch.is_on: press_illumination
+          then:
+            - if:
+                condition:
+                  - light.is_on: backlight
+                then:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 1
+                      range_to: 1
+                      red: 33%
+                      green: 33%
+                      blue: 33%
+                      color_brightness: 100%
+                else:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 1
+                      range_to: 1
+                      red: 0%
+                      green: 0%
+                      blue: 0%
+                      color_brightness: 100%
+  - platform: gpio
+    pin:
+      number: GPIO13
+      inverted: true
+      mode: INPUT_PULLUP
+    name: ${device_name} Button 3
+    internal: false
+    id: button3
+    on_press:
+      - if:
+          condition:
+            - light.is_off: button3led
+            - switch.is_on: press_illumination
+          then:
+            - light.addressable_set:
+                id: ledbus
+                range_from: 2
+                range_to: 2
+                red: 0%
+                green: 50%
+                blue: 0%
+                color_brightness: 100%
+    on_release:
+      - if:
+          condition:
+            - light.is_off: button3led
+            - switch.is_on: press_illumination
+          then:
+            - if:
+                condition:
+                  - light.is_on: backlight
+                then:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 2
+                      range_to: 2
+                      red: 33%
+                      green: 33%
+                      blue: 33%
+                      color_brightness: 100%
+                else:
+                  - light.addressable_set:
+                      id: ledbus
+                      range_from: 2
+                      range_to: 2
+                      red: 0%
+                      green: 0%
+                      blue: 0%
+                      color_brightness: 100%
+
+button:
+  - platform: restart
+    name: ${device_name} Restart Device
+    entity_category: diagnostic
