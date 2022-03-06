@@ -222,6 +222,18 @@ button:
   - platform: restart
     name: ${device_name} Restart Device
     entity_category: diagnostic
+    
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: WiFi IP Address
+      entity_category: diagnostic
 
 switch:
   - platform: template
